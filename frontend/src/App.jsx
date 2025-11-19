@@ -1,5 +1,8 @@
 // src/App.jsx
 import React, { useState } from "react";
+import "./App.css";
+import Prism from "./components/Prism";
+import MagicBento from "./components/MagicBento";
 
 function App() {
   const [form, setForm] = useState({
@@ -7,38 +10,38 @@ function App() {
     study_hours: "",
     internal_marks: "",
     assignments_submitted: "",
-    participation_score: ""
+    participation_score: "",
   });
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
 
-  // Your Flask API endpoint
+  // Flask backend URL
   const apiUrl = "http://127.0.0.1:5000/predict";
 
+  // Handle changes from MagicBento inputs
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const submit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
     setResult(null);
 
-    // Validate required fields
-    const required = [
+    const requiredFields = [
       "attendance_pct",
       "study_hours",
       "internal_marks",
       "assignments_submitted",
-      "participation_score"
+      "participation_score",
     ];
 
-    for (let r of required) {
-      if (form[r] === "") {
-        setError("Please fill all fields.");
+    for (const field of requiredFields) {
+      if (form[field] === "") {
+        setError("Please fill in all the fields.");
         return;
       }
     }
@@ -47,210 +50,158 @@ function App() {
       attendance_pct: parseFloat(form.attendance_pct),
       study_hours: parseFloat(form.study_hours),
       internal_marks: parseFloat(form.internal_marks),
-      assignments_submitted: parseInt(form.assignments_submitted),
-      participation_score: parseInt(form.participation_score)
+      assignments_submitted: parseInt(form.assignments_submitted, 10),
+      participation_score: parseInt(form.participation_score, 10),
     };
 
     setLoading(true);
-
     try {
       const res = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
-      console.log("API response:", data); // Debug log
+      console.log("API response:", data);
 
       if (!res.ok) {
-        setError("API Error: " + JSON.stringify(data));
+        setError(
+          data?.error
+            ? `API Error: ${data.error}`
+            : "Something went wrong with the API."
+        );
         return;
       }
 
       setResult(data);
     } catch (err) {
+      console.error(err);
       setError("Request failed: " + err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const clear = () => {
+  const handleClear = () => {
     setForm({
       attendance_pct: "",
       study_hours: "",
       internal_marks: "",
       assignments_submitted: "",
-      participation_score: ""
+      participation_score: "",
     });
     setResult(null);
     setError(null);
   };
 
   return (
-    <div style={{ maxWidth: 760, margin: "30px auto", fontFamily: "Arial", padding: "0 12px" }}>
-      <h1 style={{ textAlign: "center" }}>Student Performance Predictor</h1>
+    <div className="page-root">
+      {/* Animated prism background */}
+      <div className="bg-layer">
+        <Prism
+          animationType="rotate" // try "3drotate" or "hover" too
+          timeScale={0.5}
+          height={3.5}
+          baseWidth={5.5}
+          scale={3.6}
+          hueShift={0}
+          colorFrequency={1}
+          noise={0.1}
+          glow={0.8}
+        />
+      </div>
 
-      <div
-        style={{
-          border: "1px solid #ddd",
-          borderRadius: 10,
-          padding: 20,
-          background: "#222",
-          color: "#fff",
-          boxShadow: "0 6px 20px rgba(0,0,0,0.25)"
-        }}
-      >
-        <form onSubmit={submit}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <label>
-              Attendance %<br />
-              <input
-                name="attendance_pct"
-                value={form.attendance_pct}
-                onChange={handleChange}
-                placeholder="e.g., 85"
-                style={{ width: "100%", padding: 8 }}
-                required
-              />
-            </label>
-
-            <label>
-              Study Hours (avg / day)<br />
-              <input
-                name="study_hours"
-                value={form.study_hours}
-                onChange={handleChange}
-                placeholder="e.g., 3.5"
-                style={{ width: "100%", padding: 8 }}
-                required
-              />
-            </label>
-
-            <label>
-              Internal Marks (out of 50)<br />
-              <input
-                name="internal_marks"
-                value={form.internal_marks}
-                onChange={handleChange}
-                placeholder="e.g., 40"
-                style={{ width: "100%", padding: 8 }}
-                required
-              />
-            </label>
-
-            <label>
-              Assignments Submitted<br />
-              <input
-                name="assignments_submitted"
-                value={form.assignments_submitted}
-                onChange={handleChange}
-                placeholder="e.g., 5"
-                style={{ width: "100%", padding: 8 }}
-                required
-              />
-            </label>
-
-            <label>
-              Participation Score (0–3)<br />
-              <input
-                name="participation_score"
-                value={form.participation_score}
-                onChange={handleChange}
-                placeholder="0, 1, 2, or 3"
-                style={{ width: "100%", padding: 8 }}
-                required
-              />
-            </label>
-          </div>
-
-          <div style={{ marginTop: 18 }}>
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                padding: "10px 20px",
-                marginRight: 12,
-                background: "#4CAF50",
-                border: "none",
-                color: "white",
-                cursor: "pointer",
-                borderRadius: 6
-              }}
-            >
-              {loading ? "Predicting..." : "Predict"}
-            </button>
-
-            <button
-              type="button"
-              onClick={clear}
-              style={{
-                padding: "10px 20px",
-                background: "#aaa",
-                border: "none",
-                cursor: "pointer",
-                borderRadius: 6
-              }}
-            >
-              Clear
-            </button>
-          </div>
-        </form>
-
-        {error && (
-          <div
-            style={{
-              marginTop: 20,
-              padding: 12,
-              color: "#ffdddd",
-              background: "#661111",
-              borderRadius: 6
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        {result && (
-          <div
-            style={{
-              marginTop: 20,
-              padding: 16,
-              borderRadius: 10,
-              background: "#ffffff",
-              color: "#111",
-              boxShadow: "0 6px 16px rgba(0,0,0,0.1)"
-            }}
-          >
-            <h2 style={{ marginTop: 0 }}>Result</h2>
-
+      {/* Foreground content */}
+      <div className="content-layer">
+        <div className="app-shell">
+          <header className="app-header">
+            <h1>Student Performance Predictor</h1>
             <p>
-              <strong>Prediction:</strong>{" "}
-              <span>{result.prediction === 1 ? "Pass" : "Fail"}</span>
+              Enter a student&apos;s details and predict whether they will{" "}
+              <strong>pass</strong> or <strong>fail</strong> using your ML model
+              trained on 10,000 synthetic records.
             </p>
+          </header>
 
-            <p>
-              <strong>Confidence:</strong>{" "}
-              <span>{(result.confidence * 100).toFixed(2)}%</span>
-            </p>
+          <main className="app-main">
+            <div className="card">
+              <form onSubmit={handleSubmit} className="form">
+                {/* Bento layout for the 5 parameters */}
+                <MagicBento
+                  textAutoHide={true}
+                  enableStars={true}
+                  enableSpotlight={true}
+                  enableBorderGlow={true}
+                  enableTilt={true}
+                  enableMagnetism={true}
+                  clickEffect={true}
+                  spotlightRadius={300}
+                  particleCount={12}
+                  glowColor="132, 0, 255"
+                  form={form}
+                  onFieldChange={handleChange}
+                />
 
-            <details style={{ marginTop: 10 }}>
-              <summary style={{ cursor: "pointer", padding: 4 }}>Input values</summary>
-              <pre
-                style={{
-                  whiteSpace: "pre-wrap",
-                  background: "#f4f4f4",
-                  padding: 10,
-                  borderRadius: 6,
-                  marginTop: 10
-                }}
-              >
-                {JSON.stringify(result.inputs, null, 2)}
-              </pre>
-            </details>
-          </div>
-        )}
+                <div className="button-row">
+                  <button
+                    type="submit"
+                    className="btn btn-primary"
+                    disabled={loading}
+                  >
+                    {loading ? "Predicting..." : "Predict"}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={handleClear}
+                  >
+                    Clear
+                  </button>
+                </div>
+              </form>
+
+              {error && <div className="alert-error">{error}</div>}
+
+              {result && (
+                <div className="result-card">
+                  <h2 className="result-title">Prediction Result</h2>
+
+                  <p className="result-line">
+                    <span className="result-label">Prediction:</span>
+                    <span
+                      className={
+                        "result-pill " +
+                        (result.prediction === 1 ? "pass" : "fail")
+                      }
+                    >
+                      {result.prediction === 1 ? "Pass" : "Fail"}
+                    </span>
+                  </p>
+
+                  <p className="result-line">
+                    <span className="result-label">Confidence:</span>
+                    <span className="result-value">
+                      {result.confidence !== undefined
+                        ? (result.confidence * 100).toFixed(2) + "%"
+                        : "N/A"}
+                    </span>
+                  </p>
+
+                  <div className="details-block">
+                    <details>
+                      <summary>View input details</summary>
+                      <pre className="details-pre">
+                        {JSON.stringify(result.inputs || payload, null, 2)}
+                      </pre>
+                    </details>
+                  </div>
+                </div>
+              )}
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );
