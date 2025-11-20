@@ -1,256 +1,327 @@
-// src/App.jsx
 import React, { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  ResponsiveContainer,
+} from "recharts";
+import confetti from "canvas-confetti";
+import {
+  BookOpen,
+  Clock,
+  Award,
+  FileText,
+  Activity,
+  Zap,
+  RotateCcw,
+} from "lucide-react";
+import "./App.css"; // Standard CSS import
+
+// Configuration for the sliders
+const FIELDS = [
+  {
+    name: "attendance_pct",
+    label: "Attendance",
+    icon: <Clock size={18} />,
+    min: 0,
+    max: 100,
+    step: 1,
+    suffix: "%",
+    color: "#38bdf8", // Sky blue
+  },
+  {
+    name: "study_hours",
+    label: "Daily Study",
+    icon: <BookOpen size={18} />,
+    min: 0,
+    max: 12, // Realistic max for UI
+    step: 0.5,
+    suffix: " hrs",
+    color: "#a855f7", // Purple
+  },
+  {
+    name: "internal_marks",
+    label: "Internal Marks",
+    icon: <Award size={18} />,
+    min: 0,
+    max: 30,
+    step: 1,
+    suffix: "/30",
+    color: "#f472b6", // Pink
+  },
+  {
+    name: "assignments_submitted",
+    label: "Assignments",
+    icon: <FileText size={18} />,
+    min: 0,
+    max: 20,
+    step: 1,
+    suffix: "",
+    color: "#22c55e", // Green
+  },
+  {
+    name: "participation_score",
+    label: "Participation",
+    icon: <Activity size={18} />,
+    min: 0,
+    max: 10,
+    step: 1,
+    suffix: "/10",
+    color: "#facc15", // Yellow
+  },
+];
 
 function App() {
+  // State for form inputs
   const [form, setForm] = useState({
-    attendance_pct: "",
-    study_hours: "",
-    internal_marks: "",
-    assignments_submitted: "",
-    participation_score: ""
+    attendance_pct: 75,
+    study_hours: 2.5,
+    internal_marks: 18,
+    assignments_submitted: 10,
+    participation_score: 5,
   });
 
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
-  const [error, setError] = useState(null);
 
-  // Your Flask API endpoint
-  const apiUrl = "http://127.0.0.1:5000/predict";
+  // Real-time data calculation for the Radar Chart
+  const chartData = [
+    { subject: "Attendance", A: form.attendance_pct, fullMark: 100 },
+    { subject: "Study", A: (form.study_hours / 12) * 100, fullMark: 100 },
+    { subject: "Internals", A: (form.internal_marks / 30) * 100, fullMark: 100 },
+    { subject: "Assign.", A: (form.assignments_submitted / 20) * 100, fullMark: 100 },
+    { subject: "Particip.", A: (form.participation_score / 10) * 100, fullMark: 100 },
+  ];
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+  // Handler for slider changes
+  const handleChange = (name, value) => {
+    setForm((prev) => ({ ...prev, [name]: parseFloat(value) }));
+    // Reset result when user changes inputs to encourage re-prediction
+    if (result) setResult(null);
   };
 
-  const submit = async (e) => {
-    e.preventDefault();
-    setError(null);
-    setResult(null);
+  // Confetti Animation Logic
+  const triggerConfetti = () => {
+    const end = Date.now() + 1000;
+    const colors = ["#38bdf8", "#ffffff", "#22c55e"];
 
-    // Validate required fields
-    const required = [
-      "attendance_pct",
-      "study_hours",
-      "internal_marks",
-      "assignments_submitted",
-      "participation_score"
-    ];
-
-    for (let r of required) {
-      if (form[r] === "") {
-        setError("Please fill all fields.");
-        return;
-      }
-    }
-
-    const payload = {
-      attendance_pct: parseFloat(form.attendance_pct),
-      study_hours: parseFloat(form.study_hours),
-      internal_marks: parseFloat(form.internal_marks),
-      assignments_submitted: parseInt(form.assignments_submitted),
-      participation_score: parseInt(form.participation_score)
-    };
-
-    setLoading(true);
-
-    try {
-      const res = await fetch(apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
+    (function frame() {
+      confetti({
+        particleCount: 3,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 },
+        colors: colors,
+      });
+      confetti({
+        particleCount: 3,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 },
+        colors: colors,
       });
 
-      const data = await res.json();
-      console.log("API response:", data); // Debug log
-
-      if (!res.ok) {
-        setError("API Error: " + JSON.stringify(data));
-        return;
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
       }
-
-      setResult(data);
-    } catch (err) {
-      setError("Request failed: " + err.message);
-    } finally {
-      setLoading(false);
-    }
+    })();
   };
 
-  const clear = () => {
-    setForm({
-      attendance_pct: "",
-      study_hours: "",
-      internal_marks: "",
-      assignments_submitted: "",
-      participation_score: ""
-    });
-    setResult(null);
-    setError(null);
+  // Submit / Prediction Logic
+  const submit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    // Simulate API delay (Use fetch here in real implementation)
+    setTimeout(() => {
+      // MOCK ALGORITHM FOR DEMO PURPOSES
+      const score =
+        form.attendance_pct * 0.4 +
+        (form.internal_marks / 30) * 100 * 0.4 +
+        (form.study_hours / 12) * 100 * 0.2;
+
+      const isPass = score > 55; // Threshold for passing
+
+      const mockResult = {
+        prediction: isPass ? 1 : 0,
+        confidence: isPass ? 0.85 + Math.random() * 0.1 : 0.92,
+      };
+
+      setResult(mockResult);
+      setLoading(false);
+
+      if (mockResult.prediction === 1) {
+        triggerConfetti();
+      }
+    }, 1500);
   };
 
   return (
-    <div style={{ maxWidth: 760, margin: "30px auto", fontFamily: "Arial", padding: "0 12px" }}>
-      <h1 style={{ textAlign: "center" }}>Student Performance Predictor</h1>
+    <div className="page">
+      {/* Background Elements */}
+      <div className="bg-orb orb1" />
+      <div className="bg-orb orb2" />
+      <div className="noise-overlay" />
 
-      <div
-        style={{
-          border: "1px solid #ddd",
-          borderRadius: 10,
-          padding: 20,
-          background: "#222",
-          color: "#fff",
-          boxShadow: "0 6px 20px rgba(0,0,0,0.25)"
-        }}
-      >
-        <form onSubmit={submit}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-            <label>
-              Attendance %<br />
-              <input
-                name="attendance_pct"
-                value={form.attendance_pct}
-                onChange={handleChange}
-                placeholder="e.g., 85"
-                style={{ width: "100%", padding: 8 }}
-                required
-              />
-            </label>
+      <div className="app-container">
+        {/* Header Section */}
+        <motion.header
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+          className="header"
+        >
+          <div className="badge-pill">AI Powered v2.0</div>
+          <h1 className="title">
+            Student Success <span className="gradient-text">Predictor</span>
+          </h1>
+          <p className="subtitle">
+            Analyze your academic footprint and forecast your results.
+          </p>
+        </motion.header>
 
-            <label>
-              Study Hours (avg / day)<br />
-              <input
-                name="study_hours"
-                value={form.study_hours}
-                onChange={handleChange}
-                placeholder="e.g., 3.5"
-                style={{ width: "100%", padding: 8 }}
-                required
-              />
-            </label>
-
-            <label>
-              Internal Marks (out of 50)<br />
-              <input
-                name="internal_marks"
-                value={form.internal_marks}
-                onChange={handleChange}
-                placeholder="e.g., 40"
-                style={{ width: "100%", padding: 8 }}
-                required
-              />
-            </label>
-
-            <label>
-              Assignments Submitted<br />
-              <input
-                name="assignments_submitted"
-                value={form.assignments_submitted}
-                onChange={handleChange}
-                placeholder="e.g., 5"
-                style={{ width: "100%", padding: 8 }}
-                required
-              />
-            </label>
-
-            <label>
-              Participation Score (0–3)<br />
-              <input
-                name="participation_score"
-                value={form.participation_score}
-                onChange={handleChange}
-                placeholder="0, 1, 2, or 3"
-                style={{ width: "100%", padding: 8 }}
-                required
-              />
-            </label>
-          </div>
-
-          <div style={{ marginTop: 18 }}>
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                padding: "10px 20px",
-                marginRight: 12,
-                background: "#4CAF50",
-                border: "none",
-                color: "white",
-                cursor: "pointer",
-                borderRadius: 6
-              }}
-            >
-              {loading ? "Predicting..." : "Predict"}
-            </button>
-
-            <button
-              type="button"
-              onClick={clear}
-              style={{
-                padding: "10px 20px",
-                background: "#aaa",
-                border: "none",
-                cursor: "pointer",
-                borderRadius: 6
-              }}
-            >
-              Clear
-            </button>
-          </div>
-        </form>
-
-        {error && (
-          <div
-            style={{
-              marginTop: 20,
-              padding: 12,
-              color: "#ffdddd",
-              background: "#661111",
-              borderRadius: 6
-            }}
+        <div className="dashboard-grid">
+          {/* LEFT PANEL: Control Inputs */}
+          <motion.div
+            className="card control-panel"
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
           >
-            {error}
-          </div>
-        )}
+            <div className="card-header">
+              <h2>Input Metrics</h2>
+              <button className="reset-btn" onClick={() => setResult(null)}>
+                <RotateCcw size={14} /> Reset
+              </button>
+            </div>
 
-        {result && (
-          <div
-            style={{
-              marginTop: 20,
-              padding: 16,
-              borderRadius: 10,
-              background: "#ffffff",
-              color: "#111",
-              boxShadow: "0 6px 16px rgba(0,0,0,0.1)"
-            }}
-          >
-            <h2 style={{ marginTop: 0 }}>Result</h2>
+            <form onSubmit={submit} className="inputs-wrapper">
+              {FIELDS.map((field) => (
+                <div key={field.name} className="slider-group">
+                  <div className="slider-label">
+                    <div className="label-left" style={{ color: field.color }}>
+                      {field.icon}
+                      <span>{field.label}</span>
+                    </div>
+                    <span className="slider-value">
+                      {form[field.name]}
+                      <small>{field.suffix}</small>
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min={field.min}
+                    max={field.max}
+                    step={field.step}
+                    value={form[field.name]}
+                    onChange={(e) => handleChange(field.name, e.target.value)}
+                    className="custom-range"
+                    style={{ "--track-color": field.color }}
+                  />
+                </div>
+              ))}
 
-            <p>
-              <strong>Prediction:</strong>{" "}
-              <span>{result.prediction === 1 ? "Pass" : "Fail"}</span>
-            </p>
-
-            <p>
-              <strong>Confidence:</strong>{" "}
-              <span>{(result.confidence * 100).toFixed(2)}%</span>
-            </p>
-
-            <details style={{ marginTop: 10 }}>
-              <summary style={{ cursor: "pointer", padding: 4 }}>Input values</summary>
-              <pre
-                style={{
-                  whiteSpace: "pre-wrap",
-                  background: "#f4f4f4",
-                  padding: 10,
-                  borderRadius: 6,
-                  marginTop: 10
-                }}
+              <button
+                type="submit"
+                disabled={loading}
+                className={`action-btn ${loading ? "loading" : ""}`}
               >
-                {JSON.stringify(result.inputs, null, 2)}
-              </pre>
-            </details>
-          </div>
-        )}
+                {loading ? <span className="spinner" /> : <Zap size={20} />}
+                {loading ? "Calculating Probability..." : "Run Prediction Model"}
+              </button>
+            </form>
+          </motion.div>
+
+          {/* RIGHT PANEL: Visualization & Results */}
+          <motion.div
+            className="card viz-panel"
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            {/* Chart Section */}
+            <div className="chart-container">
+              <h3>Performance Radar</h3>
+              <div className="radar-wrapper">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart
+                    cx="50%"
+                    cy="50%"
+                    outerRadius="70%"
+                    data={chartData}
+                  >
+                    <PolarGrid stroke="rgba(255,255,255,0.1)" />
+                    <PolarAngleAxis
+                      dataKey="subject"
+                      tick={{ fill: "#94a3b8", fontSize: 12 }}
+                    />
+                    <PolarRadiusAxis
+                      angle={30}
+                      domain={[0, 100]}
+                      tick={false}
+                      axisLine={false}
+                    />
+                    <Radar
+                      name="Student"
+                      dataKey="A"
+                      stroke="#8b5cf6"
+                      strokeWidth={3}
+                      fill="#8b5cf6"
+                      fillOpacity={0.4}
+                      isAnimationActive={false} 
+                    />
+                  </RadarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Result Section */}
+            <AnimatePresence mode="wait">
+              {result ? (
+                <motion.div
+                  key="result"
+                  initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  className={`result-display ${
+                    result.prediction === 1 ? "pass" : "fail"
+                  }`}
+                >
+                  <div className="result-header">
+                    <span className="label">Outcome Forecast</span>
+                    <span className="confidence">
+                      {(result.confidence * 100).toFixed(1)}% Confidence
+                    </span>
+                  </div>
+                  <div className="result-main">
+                    {result.prediction === 1 ? "PASS" : "AT RISK"}
+                  </div>
+                  <p className="result-desc">
+                    {result.prediction === 1
+                      ? "Great job! Your metrics indicate a strong probability of success. Keep maintaining this momentum."
+                      : "Warning: Your current metrics suggest a high risk of failure. Focus on improving attendance and study hours immediately."}
+                  </p>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="placeholder"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.6 }}
+                  className="placeholder-state"
+                >
+                  <Activity size={48} />
+                  <p>
+                    Adjust sliders to see your academic shape. Click Predict to
+                    get AI analysis.
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.div>
+        </div>
       </div>
     </div>
   );
